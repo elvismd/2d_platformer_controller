@@ -6,19 +6,17 @@ public class PlayerInputManager : MonoBehaviour
 {
     PlayerControls playerControls;
 
-    [SerializeField]
-    float movementInput;
-    [SerializeField]
-    bool jump;
-    [SerializeField]
-    bool dash;
-    [SerializeField]
-    bool walk;
+    [SerializeField, ReadOnly] float movementInput;
+    [SerializeField, ReadOnly] bool jump;
+    [SerializeField, ReadOnly] bool dash;
+    [SerializeField, ReadOnly] bool walk;
+    [SerializeField, ReadOnly] bool _jumpDown;
 
     public float MovementInput => movementInput;
-    public bool Walk { get { return walk; } set { walk = value; } }
-    public bool Jump { get { return jump; } set { jump = value; } }
-    public bool Dash { get { return dash; } set { dash = value; } }
+    public bool Walk => walk;
+    public bool Jump => jump;
+    public bool JumpDown => _jumpDown;
+    public bool Dash => dash;
 
     private void OnEnable()
     {
@@ -29,8 +27,8 @@ public class PlayerInputManager : MonoBehaviour
             playerControls.PlayerMovement.Move.performed += i => movementInput = i.ReadValue<float>();
             playerControls.PlayerMovement.Move.canceled += i => movementInput = i.ReadValue<float>();
 
-            playerControls.PlayerMovement.Jump.performed += i => jump = i.ReadValueAsButton();
-            playerControls.PlayerMovement.Jump.canceled += i => jump = i.ReadValueAsButton();
+            playerControls.PlayerMovement.Jump.performed += i => _jumpDown = i.ReadValueAsButton();           
+            playerControls.PlayerMovement.Jump.canceled += i => _jumpDown = i.ReadValueAsButton();
 
             playerControls.PlayerMovement.Dash.performed += i => dash = i.ReadValueAsButton();
             playerControls.PlayerMovement.Dash.canceled += i => dash = i.ReadValueAsButton();
@@ -40,6 +38,12 @@ public class PlayerInputManager : MonoBehaviour
         }
 
         playerControls.Enable();
+    }
+
+    private void Update()
+    {
+        jump = playerControls.PlayerMovement.Jump.WasPressedThisFrame();
+        dash = playerControls.PlayerMovement.Dash.WasPressedThisFrame();
     }
 
     private void OnDisable()

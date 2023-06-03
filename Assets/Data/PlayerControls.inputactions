@@ -16,11 +16,11 @@
                 },
                 {
                     "name": "Jump",
-                    "type": "PassThrough",
+                    "type": "Button",
                     "id": "78b0c30a-8b35-4372-876b-2cb5a6e3297c",
                     "expectedControlType": "Button",
                     "processors": "",
-                    "interactions": "Press(pressPoint=1)",
+                    "interactions": "",
                     "initialStateCheck": false
                 },
                 {

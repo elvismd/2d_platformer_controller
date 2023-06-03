@@ -5,18 +5,20 @@ using UnityEngine.Events;
 
 public class SpriteFlicker : MonoBehaviour
 {
+    [Header("Data")]
+    [SerializeField] private SpriteRenderer[] spriteRenderer;
+
+    [SerializeField] private float duration = 1.5f;
+    [SerializeField] private float flickDuration = 0.1f;
+
+    [Header("Events")]
     public UnityEvent OnStartFlick = new UnityEvent();
     public UnityEvent OnFinishFlick = new UnityEvent();
 
-    public SpriteRenderer[] spriteRenderer;
+    private float elapsedDuration = 0.0f;
+    private float elapsedFlickDuration = 0.0f;
 
-    public float duration = 1.5f;
-    public float flickDuration = 0.1f;
-
-    float elapsedDuration = 0.0f;
-    float elapsedFlickDuration = 0.0f;
-
-    bool isFlicking = false;
+    private bool isFlicking = false;
 
     public bool IsFlicking => isFlicking;
 

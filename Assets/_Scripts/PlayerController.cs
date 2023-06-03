@@ -16,66 +16,56 @@ public class PlayerController : MonoBehaviour
     public static PlayerController instance;
 
     [Header("Movement Properties")]
-    public float walkSpeed = 14f;
-    public float runSpeed = 14f;
-    public float dashSpeed = 5f;
-    public float dashTime = 0.3f;
-    public float dashGraphicsTime = 0.15f;
-    public float dashCooldown = 0.5f;
-    public float accel = 6f;
-    public float airAccel = 3f;
-    public float jump = 14f;  //I could use the "speed" variable, but this is only coincidental in my case.  Replace line 89 if you think otherwise.
-    public float cachedDashTime = 1.5f;
-    private GroundState groundState;
-    [SerializeField]
-    private PlayerFace Facing = PlayerFace.RIGHT;
-    [SerializeField]
-    private LayerMask groundLayer;
-    [SerializeField]
-    private float _coyoteTime = 0.1f;
-    [SerializeField]
-    private float _jumpBufferTime = 0.1f;
+    [SerializeField] private float walkSpeed = 14f;
+    [SerializeField] private float runSpeed = 14f;
+    [SerializeField] private float dashSpeed = 5f;
+    [SerializeField] private float dashTime = 0.3f;
+    [SerializeField] private float dashGraphicsTime = 0.15f;
+    [SerializeField] private float dashCooldown = 0.5f;
+    [SerializeField] private float accel = 6f;
+    [SerializeField] private float airAccel = 3f;
+    [SerializeField] private float jump = 14f;  //I could use the "speed" variable, but this is only coincidental in my case.  Replace line 89 if you think otherwise.
+    [SerializeField] private float cachedDashTime = 1.5f;
+    [SerializeField] private PlayerFace Facing = PlayerFace.RIGHT;
+    [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private float _coyoteTime = 0.1f;
+    [SerializeField] private float _jumpBufferTime = 0.1f;
+    [SerializeField] private float fallMultiplier = 2.5f;
+    [SerializeField] private float lowJumpMultiplier = 2f;
 
     [Header("Data Refs")]
-    [SerializeField]
-    private PlayerInputManager PlayerInputManager;
-    [SerializeField]
-    private Transform ModelRoot;
-    [SerializeField]
-    private GameObject DashingCircle;
-    [SerializeField]
-    private Animator animator;
-    [SerializeField]
-    private Rigidbody2D rb2D;
-    [SerializeField]
-    private Collider2D CapsuleCollider;
-    [SerializeField]
-    private TrailRenderer ElectricTrail;
+    [SerializeField] private PlayerInputManager PlayerInputManager;
+    [SerializeField] private Transform ModelRoot;
+    [SerializeField] private Health health;
+    [SerializeField] private Animator animator;
+    [SerializeField] private Rigidbody2D rb2D;
+    [SerializeField] private Collider2D CapsuleCollider;
+    [SerializeField] private GameObject DashingCircle;
+    [SerializeField] private TrailRenderer ElectricTrail;
 
     [Header("Status")]
-    [SerializeField]
-    private bool dashing = false;
-    [SerializeField]
-    private Health health;
+    [SerializeField, ReadOnly] private bool dashing = false;
 
-    Vector2 _startingPos;
-    float _dashGraphicsElapsed;
-    float _dashingElapsed = -1;
-    float _dashCooldownElapsed;
-    float _cachedDashingElapsed = 0;
-    Vector2 _dashDir = Vector2.zero;
-    bool _prevGroundState;
+    private GroundState _groundState;
+    private Vector2 _startingPos;
+    private float _dashGraphicsElapsed;
+    private float _dashingElapsed = -1;
+    private float _dashCooldownElapsed;
+    private float _cachedDashingElapsed = 0;
+    private Vector2 _dashDir = Vector2.zero;
+    private bool _prevGroundState;
 
-    float _currentGravityScale;
+    private float _currentGravityScale;
 
-    bool dashDown;
-    bool doubleJump;
+    private bool _doubleJump;
 
-    float _timeSinceLeftGround;
-    float _timeSinceJumpPressed;
+    private bool _canDash = false;
+    private float _timeSinceLeftGround;
+    private float _timeSinceJumpPressed;
 
-    bool _canDash = false;
-    Vector2 _initialScale;
+    private Vector2 _initialScale;
+
+    private bool _shouldJump;
 
     private void Awake()
     {
@@ -86,7 +76,7 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         //Create an object to check if player is grounded or touching wall
-        groundState = new GroundState(transform.gameObject, CapsuleCollider, groundLayer, 0.25f);
+        _groundState = new GroundState(transform.gameObject, CapsuleCollider, groundLayer, 0.25f);
         instance = this;
 
         _startingPos = transform.position;
@@ -103,12 +93,15 @@ public class PlayerController : MonoBehaviour
         {
             _timeSinceJumpPressed = Time.time;
         }
+
+        if (!_shouldJump)
+            _shouldJump = PlayerInputManager.Jump;
     }
 
     void FixedUpdate()
     {
-        bool grounded = groundState.isGround();
-        bool onWall = groundState.isWall();
+        bool grounded = _groundState.isGround();
+        bool onWall = _groundState.isWall();
         bool isTouching = grounded || onWall;
 
         Vector2 force = new Vector2(0.0f, 0.0f);
@@ -131,28 +124,28 @@ public class PlayerController : MonoBehaviour
 
         velocity.x = (PlayerInputManager.MovementInput == 0 && grounded) ? 0 : rb2D.velocity.x;
         velocity.y = rb2D.velocity.y;
-        if( (PlayerInputManager.Jump && (canJump || onWall)) || (PlayerInputManager.Jump && doubleJump))
+        if ((_shouldJump && (canJump || onWall)) || (_shouldJump && _doubleJump))
         {
             velocity.y = jump * (onWall ? 1f : 1);
-            if(grounded)
+            if (grounded)
             {
                 _timeSinceLeftGround = 0f;
             }
 
-            if(!grounded && !onWall && !canJump)
+            if (!grounded && !onWall && !canJump)
             {
-                if(doubleJump) animator.SetBool("double_jump", true);
-                doubleJump = false;
+                if (_doubleJump) animator.SetBool("double_jump", true);
+                _doubleJump = false;
             }
         }
 
-        if(!_prevGroundState && grounded)
+        if (!_prevGroundState && grounded)
         {
             animator.SetBool("double_jump", false);
-            doubleJump = true;        
+            _doubleJump = true;
         }
 
-        if(isTouching)
+        if (isTouching)
             animator.SetBool("double_jump", false);
 
         animator.SetFloat("vel_x", animatorVelX);
@@ -164,12 +157,12 @@ public class PlayerController : MonoBehaviour
         float acceleration = (grounded ? accel : airAccel);
         force.x = ((PlayerInputManager.MovementInput * targetSpeed) - rb2D.velocity.x) * acceleration;
 
-        if (onWall && !groundState.isGround() && PlayerInputManager.Jump)
+        if (onWall && !_groundState.isGround() && _shouldJump)
         {
-            velocity.x = -groundState.wallDirection() * runSpeed * 0.75f;          
+            velocity.x = -_groundState.wallDirection() * runSpeed * 0.75f;
         }
 
-        if (!_canDash && groundState.isTouching())
+        if (!_canDash && _groundState.isTouching())
         {
             _canDash = true;
         }
@@ -226,11 +219,19 @@ public class PlayerController : MonoBehaviour
             ModelRoot.gameObject.SetActive(true);
         }
 
+        if (rb2D.velocity.y < 0f)
+        {
+            velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1) * Time.deltaTime;
+        }
+        else if (rb2D.velocity.y > 0f && !PlayerInputManager.JumpDown)
+        {
+            velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1) * Time.deltaTime;
+        }
+
         rb2D.AddForce(force); //Move player.
         rb2D.velocity = velocity;
 
-        PlayerInputManager.Jump =false;
-        PlayerInputManager.Dash = false;
+        _shouldJump = false;
 
         if (!_prevGroundState && grounded)
         {
@@ -242,8 +243,8 @@ public class PlayerController : MonoBehaviour
 
     void UpdateFacingDirection()
     {
-        if (PlayerInputManager.MovementInput < 0)       Facing = PlayerFace.LEFT;
-        else if (PlayerInputManager.MovementInput > 0)  Facing = PlayerFace.RIGHT;
+        if (PlayerInputManager.MovementInput < 0) Facing = PlayerFace.LEFT;
+        else if (PlayerInputManager.MovementInput > 0) Facing = PlayerFace.RIGHT;
 
         switch (Facing)
         {
@@ -253,7 +254,7 @@ public class PlayerController : MonoBehaviour
             case PlayerFace.RIGHT:
                 ModelRoot.parent.localScale = new Vector3(_initialScale.x, _initialScale.y, 1);
                 break;
-        }    
+        }
     }
 
     public void AddImpulseFrom(Transform transformRef)
@@ -262,9 +263,9 @@ public class PlayerController : MonoBehaviour
         Vector2 dir = (rb2D.position - (Vector2)transformRef.position).normalized;
         //Debug.Log(dir);
 
-        if(groundState.isGround())
+        if (_groundState.isGround())
         {
-            dir.y = 0.5f;   
+            dir.y = 0.5f;
         }
 
         Vector2 impulseDirection = (dir * 25 + Vector2.up * 1.2f);

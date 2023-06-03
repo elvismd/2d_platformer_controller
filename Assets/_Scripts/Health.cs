@@ -9,13 +9,10 @@ public class UnityEvtTransform : UnityEvent<Transform> { }
 
 public class Health : MonoBehaviour
 {
-    [SerializeField]
-    private float initialValue = 100f;
-    [SerializeField]
-    private float value = 100f;
+    [SerializeField] private float initialValue = 100f;
+    [SerializeField] private float value = 100f;
 
-    [SerializeField]
-    private bool invincible = false;
+    [SerializeField] private bool invincible = false;
 
     public UnityEvent OnDie = new UnityEvent();
     public UnityEvent OnDamage = new UnityEvent();
@@ -24,12 +21,11 @@ public class Health : MonoBehaviour
     public UnityEvent OnHeal = new UnityEvent();
     public UnityEvent OnEndInvincibility = new UnityEvent();
 
-    float invincibleElapsed = 0.0f;
-
-    public bool IsInvincible => invincibleElapsed > Time.time || invincible;
-    bool prevInvincible;
-
+        public bool IsInvincible => invincibleElapsed > Time.time || invincible;
     public float Value => value;
+
+    private float invincibleElapsed = 0.0f;
+    private bool prevInvincible;
 
     private void Start()
     {
