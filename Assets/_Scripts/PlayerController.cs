@@ -18,20 +18,19 @@ public class PlayerController : MonoBehaviour
     [Header("Movement Properties")]
     [SerializeField] private float walkSpeed = 14f;
     [SerializeField] private float runSpeed = 14f;
-    [SerializeField] private float dashSpeed = 5f;
-    [SerializeField] private float dashTime = 0.3f;
-    [SerializeField] private float dashGraphicsTime = 0.15f;
-    [SerializeField] private float dashCooldown = 0.5f;
     [SerializeField] private float accel = 6f;
     [SerializeField] private float airAccel = 3f;
     [SerializeField] private float jump = 14f;  //I could use the "speed" variable, but this is only coincidental in my case.  Replace line 89 if you think otherwise.
     [SerializeField] private float cachedDashTime = 1.5f;
-    [SerializeField] private PlayerFace Facing = PlayerFace.RIGHT;
     [SerializeField] private LayerMask groundLayer;
-    [SerializeField] private float _coyoteTime = 0.1f;
-    [SerializeField] private float _jumpBufferTime = 0.1f;
+    [SerializeField] private float coyoteTime = 0.1f;
+    [SerializeField] private float jumpBufferTime = 0.1f;
     [SerializeField] private float fallMultiplier = 2.5f;
     [SerializeField] private float lowJumpMultiplier = 2f;
+    [SerializeField] private float dashSpeed = 5f;
+    [SerializeField] private float dashTime = 0.3f;
+    [SerializeField] private float dashGraphicsTime = 0.15f;
+    [SerializeField] private float dashCooldown = 0.5f;
 
     [Header("Data Refs")]
     [SerializeField] private PlayerInputManager PlayerInputManager;
@@ -45,6 +44,12 @@ public class PlayerController : MonoBehaviour
 
     [Header("Status")]
     [SerializeField, ReadOnly] private bool dashing = false;
+    [SerializeField, ReadOnly] private PlayerFace Facing = PlayerFace.RIGHT;
+
+    //Modifers
+    public bool CanDash { get; set; } = true;
+    public bool CanWallJump { get; set; } = true;
+    public bool CanDoubleJump { get; set; } = true;
 
     private GroundState _groundState;
     private Vector2 _startingPos;
@@ -89,13 +94,15 @@ public class PlayerController : MonoBehaviour
         ElectricTrail.emitting = dashing;
         ElectricTrail.gameObject.SetActive(dashing);
 
-        if (PlayerInputManager.Jump)
-        {
-            _timeSinceJumpPressed = Time.time;
-        }
-
         if (!_shouldJump)
+        {
+            if(!_shouldJump && PlayerInputManager.Jump)
+            {
+                _timeSinceJumpPressed = Time.time;
+            }
+
             _shouldJump = PlayerInputManager.Jump;
+        }
     }
 
     void FixedUpdate()
@@ -103,6 +110,8 @@ public class PlayerController : MonoBehaviour
         bool grounded = _groundState.isGround();
         bool onWall = _groundState.isWall();
         bool isTouching = grounded || onWall;
+
+        if (!CanWallJump) onWall = false;
 
         Vector2 force = new Vector2(0.0f, 0.0f);
         Vector2 velocity = new Vector2(0.0f, 0.0f);
@@ -120,11 +129,12 @@ public class PlayerController : MonoBehaviour
             _timeSinceLeftGround = Time.time;
         }
 
-        bool canJump = (_timeSinceLeftGround + 0.1f > Time.time || (_timeSinceJumpPressed + 0.1f > Time.time && grounded));
+        bool canJump = (_timeSinceLeftGround + coyoteTime > Time.time || (_timeSinceJumpPressed + jumpBufferTime > Time.time && grounded));
+
 
         velocity.x = (PlayerInputManager.MovementInput == 0 && grounded) ? 0 : rb2D.velocity.x;
         velocity.y = rb2D.velocity.y;
-        if ((_shouldJump && (canJump || onWall)) || (_shouldJump && _doubleJump))
+        if ((_shouldJump && (canJump || onWall)) || (_shouldJump && (_doubleJump && CanDoubleJump)))
         {
             velocity.y = jump * (onWall ? 1f : 1);
             if (grounded)
@@ -194,7 +204,7 @@ public class PlayerController : MonoBehaviour
             dashing = false;
         }
 
-        if (PlayerInputManager.Dash && _canDash && _dashingElapsed < Time.time && (_dashCooldownElapsed < Time.time))
+        if ((PlayerInputManager.Dash && CanDash) && _canDash && _dashingElapsed < Time.time && (_dashCooldownElapsed < Time.time))
         {
             _dashDir = new Vector2((int)Facing, 0f);
 
